@@ -7,11 +7,12 @@ import {
 } from "../api/whatsapp";
 import { useMessageStore } from "../store/message.store";
 import { useConversationStore } from "../store/conversation.store";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export const useConversationsQuery = () => {
   const { activeTab, filterKeyword } = useConversationStore();
   const setConversations = useMessageStore((state) => state.setConversations);
+  const lastDataRef = useRef(null);
 
   const query = useQuery({
     queryKey: ["conversations", activeTab, filterKeyword],
@@ -21,10 +22,17 @@ export const useConversationsQuery = () => {
   });
 
   useEffect(() => {
-    if (query.data?.results) {
+    // Only update if data actually changed
+    if (query.data?.results && query.data !== lastDataRef.current) {
+      console.log(
+        "[useConversationsQuery] Updating store with",
+        query.data.results.length,
+        "conversations"
+      );
+      lastDataRef.current = query.data;
       setConversations(query.data.results);
     }
-  }, [query.data, setConversations]);
+  }, [query.data]);
 
   return query;
 };
@@ -34,6 +42,8 @@ export const useMessagesQuery = (conversationId) => {
   const setActiveConversation = useConversationStore(
     (state) => state.setActiveConversation
   );
+  const lastConversationIdRef = useRef(null);
+  const lastDataRef = useRef(null);
 
   const query = useQuery({
     queryKey: ["messages", conversationId],
@@ -42,18 +52,30 @@ export const useMessagesQuery = (conversationId) => {
       return data;
     },
     enabled: !!conversationId,
-    staleTime: 60000, // Long stale time, rely on WS for updates
+    staleTime: 60000,
   });
 
-  // Sync with Zustand
   useEffect(() => {
-    if (query.data?.data?.messages) {
+    // Only update if data or conversation changed
+    if (
+      query.data?.data?.messages &&
+      (query.data !== lastDataRef.current ||
+        conversationId !== lastConversationIdRef.current)
+    ) {
+      console.log(
+        "[useMessagesQuery] Updating store with",
+        query.data.data.messages.length,
+        "messages"
+      );
+      lastDataRef.current = query.data;
+      lastConversationIdRef.current = conversationId;
       setMessages(query.data.data.messages, conversationId);
+
+      if (query.data.data.contact) {
+        setActiveConversation(query.data.data.contact);
+      }
     }
-    if (query.data?.data?.contact) {
-      setActiveConversation(query.data.data.contact);
-    }
-  }, [query.data, setMessages, setActiveConversation, conversationId]);
+  }, [query.data, conversationId]);
 
   return query;
 };
@@ -67,10 +89,8 @@ export const useSendMessageMutation = () => {
 
   return useMutation({
     mutationFn: sendMessage,
-    onSuccess: (newMessage, variables) => {
-      // Optimistic update or just add to store
+    onSuccess: (newMessage) => {
       addMessage(newMessage, activeConversationId);
-      // Invalidate conversations to update last message
       queryClient.invalidateQueries({ queryKey: ["conversations"] });
     },
   });

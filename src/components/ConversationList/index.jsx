@@ -1,28 +1,28 @@
-import React, { useEffect } from 'react';
 import {
-  Box,
-  List,
-  ListItemButton,
-  ListItemAvatar,
-  ListItemText,
   Avatar,
-  Typography,
-  TextField,
-  InputAdornment,
-  IconButton,
   Badge,
-  Tabs,
-  Tab,
+  Box,
+  CircularProgress,
   Divider,
-  CircularProgress
+  IconButton,
+  InputAdornment,
+  List,
+  ListItemAvatar,
+  ListItemButton,
+  ListItemText,
+  Tab,
+  Tabs,
+  TextField,
+  Typography
 } from '@mui/material';
 import { styled } from '@mui/material/styles';
-import Magnify from 'mdi-material-ui/Magnify';
+import { format } from 'date-fns';
 import FilterVariant from 'mdi-material-ui/FilterVariant';
+import Magnify from 'mdi-material-ui/Magnify';
+import React from 'react';
+import { useConversationsQuery } from '../../hooks/useWhatsapp';
 import { useConversationStore } from '../../store/conversation.store';
 import { useMessageStore } from '../../store/message.store';
-import { useConversationsQuery } from '../../hooks/useWhatsapp';
-import { format } from 'date-fns';
 
 import { alpha } from '@mui/material/styles';
 
@@ -58,26 +58,23 @@ const ConversationList = () => {
 
   const { isLoading: isLoadingConversations } = useConversationsQuery();
   
-  // Get conversations from store (source of truth)
-  const allConversations = useMessageStore((state) => state.getAllConversations());
+  // Get conversations from store (source of truth) - select the object, not the array
+  const conversationsById = useMessageStore((state) => state.conversations.byId);
   
-  // Filter conversations based on activeTab and filterKeyword
-  const conversations = React.useMemo(() => {
-    let filtered = allConversations;
-    
-    // Apply keyword filter
-    if (filterKeyword) {
-      const lowerKeyword = filterKeyword.toLowerCase();
-      filtered = filtered.filter(
-        (c) =>
-          c.contact_name?.toLowerCase().includes(lowerKeyword) ||
-          c.whatsapp_number?.includes(lowerKeyword)
-      );
-    }
-    
-    console.log('[ConversationList] Rendering with store data:', filtered.length, 'conversations');
-    return filtered;
-  }, [allConversations, filterKeyword]);
+  // Convert to array and filter
+  const allConversations = Object.values(conversationsById);
+  let conversations = allConversations;
+  
+  if (filterKeyword) {
+    const lowerKeyword = filterKeyword.toLowerCase();
+    conversations = allConversations.filter(
+      (c) =>
+        c.contact_name?.toLowerCase().includes(lowerKeyword) ||
+        c.whatsapp_number?.includes(lowerKeyword)
+    );
+  }
+  
+  console.log('[ConversationList] Rendering with', conversations.length, 'conversations from store');
   
   const handleTabChange = (event, newValue) => {
     setTab(newValue);

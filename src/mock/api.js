@@ -18,15 +18,16 @@ const mockConversationsResponse = {
         type: "agent",
         display_name: "Support Agent",
       },
-      last_message_id: "shreyas-msg-3",
+      last_message_id: "shreyas-bulk-msg-99",
       unread_count: 1,
       created_at: "2025-11-20T10:00:00.000Z",
-      updated_at: "2025-12-01T13:30:00.000Z",
-      last_message_timestamp: "2025-12-01T13:30:00.000Z",
+      updated_at: "2025-12-01T14:39:00.000Z",
+      last_message_timestamp: "2025-12-01T14:39:00.000Z",
       metadata: {
         type: "SUPPORT",
         status: "ACTIVE",
-        last_message_preview: "📷 Image",
+        last_message_preview:
+          "Message 100: This is a test message for virtualization.",
       },
       outgoing: false,
     },
@@ -101,118 +102,45 @@ const mockConversationsResponse = {
   ],
 };
 
-// Helper to simulate message storage for different conversations
-// Each conversation gets a unique set of messages
-let mockMessagesStore = {
-  // Shreyas: Mix of templates, text, images, reactions
-  "e5d7d687-eefd-4d10-bd21-100afac21aeb": [
-    {
-      id: "shreyas-msg-1",
+// Generate 100 messages for Shreyas conversation
+const generateShreyasMessages = () => {
+  const messages = [];
+  const baseTime = new Date("2025-12-01T09:00:00.000Z").getTime();
+
+  for (let i = 0; i < 100; i++) {
+    const isOutbound = i % 3 === 0;
+    const msgTime = new Date(baseTime + i * 60000);
+    messages.push({
+      id: `shreyas-bulk-msg-${i}`,
       conversationId: "e5d7d687-eefd-4d10-bd21-100afac21aeb",
-      direction: "outbound",
+      direction: isOutbound ? "outbound" : "inbound",
       from: {
-        id: "agent-12",
-        display_name: "Support Agent",
-        userName: "agent_12",
-        email: "agent@example.com",
-        type: "agent",
-      },
-      type: "template",
-      content: {
-        templateName: "product_restock",
-        language: "en_US",
-        components: [
-          {
-            type: "header",
-            format: "text",
-            text: "Product restocked!",
-          },
-          {
-            type: "body",
-            text: "Hey there, \nWe are pleased to announce that the product you were looking for has been restocked. Act fast!",
-          },
-          {
-            type: "button",
-            buttons: [
-              { type: "quick_reply", title: "Buy now" },
-              { type: "quick_reply", title: "Unsubscribe" },
-            ],
-          },
-        ],
-      },
-      status: "read",
-      createdAt: "2025-12-01T09:00:00.000Z",
-      updatedAt: "2025-12-01T09:00:00.000Z",
-      metadata: { reactions: [] },
-    },
-    // Reaction to msg-1
-    {
-      id: "reaction-1",
-      conversationId: "e5d7d687-eefd-4d10-bd21-100afac21aeb",
-      direction: "inbound",
-      from: {
-        id: "wa:+9921536127",
-        display_name: "Shreyas",
-        userName: "shreyas",
-        email: "",
-        type: "customer",
-      },
-      type: "reaction",
-      content: {
-        reactionToMessageId: "shreyas-msg-1",
-        emoji: "👍",
-      },
-      status: "read",
-      createdAt: "2025-12-01T09:01:00.000Z",
-      updatedAt: "2025-12-01T09:01:00.000Z",
-    },
-    {
-      id: "shreyas-msg-2",
-      conversationId: "e5d7d687-eefd-4d10-bd21-100afac21aeb",
-      direction: "outbound",
-      from: {
-        id: "agent-12",
-        display_name: "Support Agent",
-        userName: "agent_12",
-        email: "agent@example.com",
-        type: "agent",
+        id: isOutbound ? "agent-12" : "wa:+9921536127",
+        display_name: isOutbound ? "Support Agent" : "Shreyas",
+        userName: isOutbound ? "agent_12" : "shreyas",
+        email: isOutbound ? "agent@example.com" : "",
+        type: isOutbound ? "agent" : "customer",
       },
       type: "text",
       content: {
-        text: "hello sir, how are you?",
+        text: `Message ${
+          i + 1
+        }: This is a test message for virtualization. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.`,
       },
       status: "read",
-      createdAt: "2025-12-01T13:01:00.000Z",
-      updatedAt: "2025-12-01T13:01:00.000Z",
-    },
-    {
-      id: "shreyas-msg-3",
-      conversationId: "e5d7d687-eefd-4d10-bd21-100afac21aeb",
-      direction: "inbound",
-      from: {
-        id: "wa:+9921536127",
-        display_name: "Shreyas",
-        userName: "shreyas",
-        email: "",
-        type: "customer",
-      },
-      type: "media",
-      content: {
-        mediaType: "image",
-        url: "https://picsum.photos/400/300?random=1",
-        caption: "Check this out!",
-      },
-      status: "read",
-      createdAt: "2025-12-01T13:30:00.000Z",
-      updatedAt: "2025-12-01T13:30:00.000Z",
-      metadata: {
-        replyTo: {
-          id: "shreyas-msg-2",
-          text: "hello sir, how are you?",
-        },
-      },
-    },
-  ],
+      createdAt: msgTime.toISOString(),
+      updatedAt: msgTime.toISOString(),
+    });
+  }
+
+  return messages;
+};
+
+// Helper to simulate message storage for different conversations
+// Each conversation gets a unique set of messages
+let mockMessagesStore = {
+  // Shreyas: 100 messages for virtualization testing
+  "e5d7d687-eefd-4d10-bd21-100afac21aeb": generateShreyasMessages(),
 
   // Ningappa: Text, videos, documents
   "013c952d-b70e-4d7e-b9e7-4e2dd4b2fe51": [
