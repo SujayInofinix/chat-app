@@ -14,6 +14,11 @@ export const useMessageStore = create(
 
       // Actions
       addMessage: (message, conversationId) => {
+        console.log("[MessageStore] addMessage called:", {
+          messageId: message.id,
+          conversationId,
+        });
+
         set((state) => {
           const { id } = message;
           // Update messages.byId
@@ -23,7 +28,6 @@ export const useMessageStore = create(
             : [...state.messages.allIds, id];
 
           // Update conversation message list
-          // If conversationId is not provided, we might not be able to link it unless message has it
           const targetConvId = conversationId || message.conversationId;
 
           let newConversationsById = state.conversations.byId;
@@ -40,6 +44,13 @@ export const useMessageStore = create(
               ...state.conversations.byId,
               [targetConvId]: { ...currentConv, messages: newConvMessages },
             };
+
+            console.log(
+              "[MessageStore] addMessage - Updated conversation:",
+              targetConvId,
+              "messages:",
+              newConvMessages.length
+            );
           }
 
           return {
@@ -55,35 +66,77 @@ export const useMessageStore = create(
       },
 
       setMessages: (messagesList, conversationId) => {
+        console.log("[MessageStore] setMessages called:", {
+          messagesCount: messagesList?.length,
+          conversationId,
+        });
+
+        if (!Array.isArray(messagesList)) {
+          console.warn(
+            "[MessageStore] setMessages - messagesList is not an array"
+          );
+          return;
+        }
+
+        if (!conversationId) {
+          console.error(
+            "[MessageStore] setMessages - conversationId is required!"
+          );
+          return;
+        }
+
         const byId = {};
         const allIds = [];
         const messageIds = [];
 
-        if (Array.isArray(messagesList)) {
-          messagesList.forEach((msg) => {
-            byId[msg.id] = msg;
-            allIds.push(msg.id);
-            messageIds.push(msg.id);
-          });
-        }
+        messagesList.forEach((msg) => {
+          byId[msg.id] = msg;
+          allIds.push(msg.id);
+          messageIds.push(msg.id);
+        });
 
-        set((state) => ({
-          messages: {
-            byId: { ...state.messages.byId, ...byId },
-            allIds: [...new Set([...state.messages.allIds, ...allIds])],
-          },
-          conversations: {
-            byId: {
-              ...state.conversations.byId,
-              [conversationId]: { messages: messageIds, ...state.conversations.byId[conversationId] },
+        set((state) => {
+          const result = {
+            messages: {
+              byId: { ...state.messages.byId, ...byId },
+              allIds: [...new Set([...state.messages.allIds, ...allIds])],
             },
-          },
-        }));
+            conversations: {
+              byId: {
+                ...state.conversations.byId,
+                [conversationId]: {
+                  ...state.conversations.byId[conversationId],
+                  messages: messageIds,
+                },
+              },
+            },
+          };
+
+          console.log("[MessageStore] setMessages - Result:", {
+            totalMessages: Object.keys(result.messages.byId).length,
+            conversationMessages:
+              result.conversations.byId[conversationId]?.messages.length,
+            conversationId,
+          });
+
+          return result;
+        });
       },
 
       setConversations: (conversationsList) => {
-        console.log('[MessageStore] setConversations called with', conversationsList, 'conversations');
-        if (!Array.isArray(conversationsList)) return;
+        console.log(
+          "[MessageStore] setConversations called with",
+          conversationsList?.length,
+          "conversations"
+        );
+
+        if (!Array.isArray(conversationsList)) {
+          console.warn(
+            "[MessageStore] setConversations - conversationsList is not an array"
+          );
+          return;
+        }
+
         set((state) => {
           const existing = state.conversations.byId || {};
           const mapped = {};
@@ -91,7 +144,8 @@ export const useMessageStore = create(
           conversationsList.forEach((c) => {
             const id = c.id;
             const existingEntry = existing[id] || {};
-            // preserve messages array if present on existing mapping
+            // Preserve messages array if present on existing mapping
+            // Don't copy messages from the API response, only preserve what's in store
             mapped[id] = {
               ...existingEntry,
               ...c,
@@ -99,7 +153,7 @@ export const useMessageStore = create(
             };
           });
 
-          return {
+          const result = {
             conversations: {
               byId: {
                 ...existing,
@@ -107,6 +161,13 @@ export const useMessageStore = create(
               },
             },
           };
+
+          console.log("[MessageStore] setConversations - Result:", {
+            totalConversations: Object.keys(result.conversations.byId).length,
+            conversationIds: Object.keys(result.conversations.byId),
+          });
+
+          return result;
         });
       },
 
@@ -115,15 +176,52 @@ export const useMessageStore = create(
       getMessagesForConversation: (conversationId) => {
         const state = get();
         const conv = state.conversations.byId[conversationId];
-        if (!conv) return [];
-        return conv.messages
+
+        console.log("[MessageStore] getMessagesForConversation:", {
+          conversationId,
+          conversationExists: !!conv,
+          messageIds: conv?.messages || [],
+          messagesCount: conv?.messages?.length || 0,
+        });
+
+        if (!conv) {
+          console.warn(
+            "[MessageStore] getMessagesForConversation - Conversation not found:",
+            conversationId
+          );
+          return [];
+        }
+
+        if (!conv.messages || conv.messages.length === 0) {
+          console.warn(
+            "[MessageStore] getMessagesForConversation - No messages in conversation:",
+            conversationId
+          );
+          return [];
+        }
+
+        const messages = conv.messages
           .map((id) => state.messages.byId[id])
           .filter(Boolean);
+
+        console.log(
+          "[MessageStore] getMessagesForConversation - Returning",
+          messages.length,
+          "messages"
+        );
+
+        return messages;
       },
 
       getAllConversations: () => {
         const state = get();
-        return Object.values(state.conversations.byId);
+        const conversations = Object.values(state.conversations.byId);
+        console.log(
+          "[MessageStore] getAllConversations - Returning",
+          conversations.length,
+          "conversations"
+        );
+        return conversations;
       },
     }),
     {
