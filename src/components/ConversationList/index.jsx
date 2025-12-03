@@ -20,6 +20,7 @@ import { styled } from '@mui/material/styles';
 import Magnify from 'mdi-material-ui/Magnify';
 import FilterVariant from 'mdi-material-ui/FilterVariant';
 import { useConversationStore } from '../../store/conversation.store';
+import { useMessageStore } from '../../store/message.store';
 import { useConversationsQuery } from '../../hooks/useWhatsapp';
 import { format } from 'date-fns';
 
@@ -35,7 +36,7 @@ const StyledList = styled(List)(({ theme }) => ({
       backgroundColor: theme.palette.action.hover,
     },
     '&.Mui-selected': {
-      backgroundColor: alpha(theme.palette.primary.main, 0.12), // More visible selection
+      backgroundColor: alpha(theme.palette.primary.main, 0.12),
       borderLeft: `4px solid ${theme.palette.primary.main}`,
       paddingLeft: `calc(${theme.spacing(2.5)} - 4px)`,
       '&:hover': {
@@ -55,9 +56,29 @@ const ConversationList = () => {
     setActiveConversationId
   } = useConversationStore();
 
-  const { data: conversationsData, isLoading: isLoadingConversations } = useConversationsQuery();
-  const conversations = conversationsData || [];
-  console.log('Conversations:', conversationsData);
+  const { isLoading: isLoadingConversations } = useConversationsQuery();
+  
+  // Get conversations from store (source of truth)
+  const allConversations = useMessageStore((state) => state.getAllConversations());
+  
+  // Filter conversations based on activeTab and filterKeyword
+  const conversations = React.useMemo(() => {
+    let filtered = allConversations;
+    
+    // Apply keyword filter
+    if (filterKeyword) {
+      const lowerKeyword = filterKeyword.toLowerCase();
+      filtered = filtered.filter(
+        (c) =>
+          c.contact_name?.toLowerCase().includes(lowerKeyword) ||
+          c.whatsapp_number?.includes(lowerKeyword)
+      );
+    }
+    
+    console.log('[ConversationList] Rendering with store data:', filtered.length, 'conversations');
+    return filtered;
+  }, [allConversations, filterKeyword]);
+  
   const handleTabChange = (event, newValue) => {
     setTab(newValue);
   };
@@ -138,14 +159,14 @@ const ConversationList = () => {
           <StyledList>
             {conversations.map((conversation) => (
               <ListItemButton
-                key={conversation.uuid}
-                selected={activeConversationId === conversation.uuid}
-                onClick={() => handleSelectConversation(conversation.uuid)}
+                key={conversation.id}
+                selected={activeConversationId === conversation.id}
+                onClick={() => handleSelectConversation(conversation.id)}
                 alignItems="flex-start"
                 sx={{ cursor: 'pointer' }}
               >
                 <ListItemAvatar>
-                  <Avatar src={conversation.avatar} alt={conversation.contact_name} />
+                  <Avatar src={conversation.profile_picture} alt={conversation.contact_name} />
                 </ListItemAvatar>
                 <ListItemText
                   primary={
@@ -161,7 +182,7 @@ const ConversationList = () => {
                   secondary={
                     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <Typography variant="body2" color="text.secondary" noWrap sx={{ maxWidth: '70%', lineHeight: '20px', minHeight: '20px' }}>
-                        {conversation.last_message_text || ' '}
+                        {conversation.metadata?.last_message_preview || ' '}
                       </Typography>
                       {conversation.unread_count > 0 && (
                         <Badge

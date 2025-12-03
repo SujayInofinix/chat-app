@@ -21,8 +21,8 @@ export const useConversationsQuery = () => {
   });
 
   useEffect(() => {
-    if (query.data) {
-      setConversations(query.data);
+    if (query.data?.results) {
+      setConversations(query.data.results);
     }
   }, [query.data, setConversations]);
 

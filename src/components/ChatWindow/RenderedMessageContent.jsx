@@ -14,55 +14,26 @@ const RenderedMessageContent = ({ message }) => {
       .replace(/~(.*?)~/g, '<s>$1</s>');
   };
 
-  // Helper to get content based on type, supporting both new schema and legacy rendered_payload
-  const getContent = () => {
-    switch (message.type) {
-      case 'text':
-        return message.text?.body || message.rendered_payload;
-      case 'image':
-        return message.image || message.rendered_payload;
-      case 'video':
-        return message.video || message.rendered_payload;
-      case 'audio':
-        return message.audio || message.rendered_payload;
-      case 'document':
-        return message.document || message.rendered_payload;
-      case 'location':
-        return message.location || message.rendered_payload;
-      case 'contacts':
-        return message.contacts || message.rendered_payload;
-      case 'interactive':
-        return message.interactive || message.rendered_payload;
-      case 'template':
-        // Template usually has a complex structure, often pre-rendered in rendered_payload
-        // But if we have the raw template object, we might need to render it differently or just show fallback
-        return message.template || message.rendered_payload;
-      default:
-        return message.rendered_payload;
-    }
-  };
+  const { type, content } = message;
 
-  const content = getContent();
-
-  if (message.type === 'text') {
-    const textBody = typeof content === 'string' ? content : content?.body;
+  if (type === 'text') {
+    const textBody = content?.text || '';
     return (
       <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', fontSize: '0.95rem' }}>
         {textBody}
       </Typography>
     );
-  } else if (message.type === 'template') {
-    // ... existing template logic ...
-    // Assuming rendered_payload structure for templates is still dominant for now
-    // or we adapt to the new schema if present
-    const components = message.rendered_payload?.rendered_components || [];
+  } else if (type === 'template') {
+    const components = content?.components || [];
 
     if (components.length > 0) {
       return (
         <Box>
           {components.map((comp, index) => {
-            if (comp.type === 'HEADER') {
-              if (comp.format === 'TEXT') {
+            const compType = comp.type.toUpperCase();
+            
+            if (compType === 'HEADER') {
+              if (comp.format === 'TEXT' || comp.format === 'text') {
                 return (
                   <Typography
                     key={index}
@@ -83,7 +54,7 @@ const RenderedMessageContent = ({ message }) => {
               return null;
             }
 
-            if (comp.type === 'BODY') {
+            if (compType === 'BODY') {
               return (
                 <Box
                   key={index}
@@ -105,7 +76,7 @@ const RenderedMessageContent = ({ message }) => {
               );
             }
 
-            if (comp.type === 'FOOTER') {
+            if (compType === 'FOOTER') {
               return (
                 <Typography
                   key={index}
@@ -126,7 +97,7 @@ const RenderedMessageContent = ({ message }) => {
               );
             }
 
-            if (comp.type === 'BUTTONS' && comp.buttons && comp.buttons.length > 0) {
+            if (compType === 'BUTTONS' && comp.buttons && comp.buttons.length > 0) {
               return (
                 <Box key={index} sx={{ width: '100%', display: 'flex', flexDirection: 'column', mt: 1.5 }}>
                   {comp.buttons.map((button, btnIndex) => (
@@ -146,7 +117,7 @@ const RenderedMessageContent = ({ message }) => {
                           }
                         }}
                       >
-                        {button.text}
+                        {button.title || button.text} 
                       </Button>
                     </React.Fragment>
                   ))}
@@ -159,173 +130,171 @@ const RenderedMessageContent = ({ message }) => {
         </Box>
       );
     }
-    // Fallback if no rendered components but we have a template object
-    if (content?.name) {
-      return <Typography variant="body2">Template: {content.name}</Typography>;
+    // Fallback
+    if (content?.templateName) {
+      return <Typography variant="body2">Template: {content.templateName}</Typography>;
     }
     return null;
 
-  } else if (message.type === 'image') {
-    const url = content?.link || content?.url;
+  } else if (type === 'media') {
+    // Handle media type based on content.mediaType
+    const mediaType = content?.mediaType;
+    const url = content?.url;
     const caption = content?.caption;
-    return (
-      <Box sx={{ maxWidth: '100%' }}>
-        <img
-          src={url}
-          alt="Shared image"
-          style={{ maxWidth: '100%', borderRadius: 8, display: 'block' }}
-        />
-        {caption && (
-          <Typography variant="body2" sx={{ mt: 0.5 }}>
-            {caption}
-          </Typography>
-        )}
-      </Box>
-    );
-  } else if (message.type === 'video') {
-    const url = content?.link || content?.url;
-    const caption = content?.caption;
-    return (
-      <Box>
+
+    if (mediaType === 'image') {
+      return (
+        <Box sx={{ maxWidth: '100%' }}>
+          <img
+            src={url}
+            alt="Shared image"
+            style={{ maxWidth: '100%', borderRadius: 8, display: 'block' }}
+          />
+          {caption && (
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+              {caption}
+            </Typography>
+          )}
+        </Box>
+      );
+    } else if (mediaType === 'video') {
+      return (
+        <Box>
+          <Box sx={{
+            maxWidth: '100%',
+            overflow: 'hidden',
+            borderRadius: 2,
+            backgroundColor: '#000',
+          }}>
+            <video
+              controls
+              src={url}
+              style={{
+                width: '100%',
+                maxWidth: '100%',
+                height: 'auto',
+                display: 'block',
+                objectFit: 'contain',
+              }}
+            />
+          </Box>
+          {caption && (
+            <Typography variant="body2" sx={{ mt: 0.5, wordBreak: 'break-word' }}>
+              {caption}
+            </Typography>
+          )}
+        </Box>
+      );
+    } else if (mediaType === 'audio') {
+      return (
         <Box sx={{
+          width: '100%',
           maxWidth: '100%',
           overflow: 'hidden',
-          borderRadius: 2,
-          backgroundColor: '#000',
         }}>
-          <video
+          <audio
             controls
             src={url}
             style={{
               width: '100%',
               maxWidth: '100%',
-              height: 'auto',
               display: 'block',
-              objectFit: 'contain',
+              outline: 'none',
             }}
           />
         </Box>
-        {caption && (
-          <Typography variant="body2" sx={{ mt: 0.5, wordBreak: 'break-word' }}>
-            {caption}
-          </Typography>
-        )}
-      </Box>
-    );
-  } else if (message.type === 'audio') {
-    const url = content?.link || content?.url;
-    return (
-      <Box sx={{
-        width: '100%',
-        maxWidth: '100%',
-        overflow: 'hidden',
-      }}>
-        <audio
-          controls
-          src={url}
-          style={{
-            width: '100%',
-            maxWidth: '100%',
-            display: 'block',
-            outline: 'none',
-          }}
-        />
-      </Box>
-    );
-  } else if (message.type === 'document') {
-    const url = content?.link || content?.url;
-    const filename = content?.filename || 'Document';
-    const caption = content?.caption;
-
-    return (
-      <Box sx={{
-        display: 'flex',
-        flexDirection: 'column',
-        bgcolor: '#FFFFFF',
-        borderRadius: 2,
-        overflow: 'hidden',
-        maxWidth: '100%',
-        boxShadow: '0 1px 0.5px rgba(0,0,0,0.13)',
-      }}>
-        {/* Document Preview/Thumbnail */}
+      );
+    } else if (mediaType === 'document') {
+      const filename = content?.filename || 'Document';
+      return (
         <Box sx={{
-          width: '100%',
-          height: 200,
-          bgcolor: '#f0f2f5',
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          position: 'relative',
-          borderBottom: '1px solid rgba(0,0,0,0.05)',
+          flexDirection: 'column',
+          bgcolor: '#FFFFFF',
+          borderRadius: 2,
+          overflow: 'hidden',
+          maxWidth: '100%',
+          boxShadow: '0 1px 0.5px rgba(0,0,0,0.13)',
         }}>
+          {/* Document Preview/Thumbnail */}
           <Box sx={{
-            width: '80%',
-            height: '80%',
-            bgcolor: 'white',
-            border: '1px solid #ddd',
-            borderRadius: 1,
+            width: '100%',
+            height: 200,
+            bgcolor: '#f0f2f5',
             display: 'flex',
-            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            position: 'relative',
+            borderBottom: '1px solid rgba(0,0,0,0.05)',
           }}>
-            <FileDocument sx={{ fontSize: 48, color: '#d32f2f', mb: 1 }} />
-            <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase' }}>
-              PDF
-            </Typography>
+            <Box sx={{
+              width: '80%',
+              height: '80%',
+              bgcolor: 'white',
+              border: '1px solid #ddd',
+              borderRadius: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+            }}>
+              <FileDocument sx={{ fontSize: 48, color: '#d32f2f', mb: 1 }} />
+              <Typography variant="caption" sx={{ color: 'text.secondary', textTransform: 'uppercase' }}>
+                PDF
+              </Typography>
+            </Box>
           </Box>
-        </Box>
 
-        {/* Document Info */}
-        <Box sx={{
-          display: 'flex',
-          alignItems: 'center',
-          p: 1.5,
-          gap: 1.5,
-        }}>
-          <FileDocument fontSize="large" sx={{ color: 'error.main', flexShrink: 0 }} />
+          {/* Document Info */}
+          <Box sx={{
+            display: 'flex',
+            alignItems: 'center',
+            p: 1.5,
+            gap: 1.5,
+          }}>
+            <FileDocument fontSize="large" sx={{ color: 'error.main', flexShrink: 0 }} />
 
-          <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography
-              variant="body2"
+            <Box sx={{ flex: 1, minWidth: 0 }}>
+              <Typography
+                variant="body2"
+                sx={{
+                  fontWeight: 500,
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  whiteSpace: 'nowrap',
+                  mb: 0.25,
+                }}
+              >
+                {filename}
+              </Typography>
+              {caption && <Typography variant="caption" sx={{ color: 'text.secondary' }}>{caption}</Typography>}
+            </Box>
+
+            {/* Download Button */}
+            <IconButton
+              size="small"
               sx={{
-                fontWeight: 500,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                mb: 0.25,
+                bgcolor: '#e9edef',
+                '&:hover': { bgcolor: '#d9dee0' },
+                width: 36,
+                height: 36,
               }}
+              onClick={() => window.open(url, '_blank')}
             >
-              {filename}
-            </Typography>
-            {caption && <Typography variant="caption" sx={{ color: 'text.secondary' }}>{caption}</Typography>}
+              <Box component="span" sx={{ fontSize: 20 }}>⬇</Box>
+            </IconButton>
           </Box>
-
-          {/* Download Button */}
-          <IconButton
-            size="small"
-            sx={{
-              bgcolor: '#e9edef',
-              '&:hover': { bgcolor: '#d9dee0' },
-              width: 36,
-              height: 36,
-            }}
-            onClick={() => window.open(url, '_blank')}
-          >
-            <Box component="span" sx={{ fontSize: 20 }}>⬇</Box>
-          </IconButton>
         </Box>
-      </Box>
-    );
-  } else if (message.type === 'location') {
+      );
+    }
+  } else if (type === 'location') {
     const { latitude, longitude, name, address } = content || {};
     const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}&z=15&output=embed`;
 
     return (
       <Box sx={{ width: '100%', minWidth: 200 }}>
         <Box sx={{ height: 150, bgcolor: '#eee', mb: 1, borderRadius: 1, overflow: 'hidden' }}>
-          {/* Placeholder for map or actual iframe if allowed */}
           <iframe
             width="100%"
             height="100%"
@@ -352,15 +321,15 @@ const RenderedMessageContent = ({ message }) => {
         </Link>
       </Box>
     );
-  } else if (message.type === 'contacts') {
-    const contacts = Array.isArray(content) ? content : [content];
+  } else if (type === 'contact') {
+    const contacts = content?.contacts || [];
     return (
       <Box>
         {contacts.map((contact, idx) => (
           <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1, border: '1px solid #eee', borderRadius: 1, mb: 1 }}>
             <AccountBox sx={{ fontSize: 40, color: 'primary.main' }} />
             <Box>
-              <Typography variant="subtitle1">{contact.name?.formatted_name}</Typography>
+              <Typography variant="subtitle1">{contact.name?.formattedName}</Typography>
               {contact.phones?.[0]?.phone && (
                 <Typography variant="body2" color="text.secondary">{contact.phones[0].phone}</Typography>
               )}
@@ -370,22 +339,20 @@ const RenderedMessageContent = ({ message }) => {
         <Button fullWidth variant="outlined" size="small">View Contact</Button>
       </Box>
     );
-  } else if (message.type === 'interactive') {
-    // Handle interactive messages (list, button, product)
-    const interactiveType = content?.type;
+  } else if (type === 'interactive') {
+    const interactiveType = content?.interactiveType;
     const header = content?.header?.text;
     const body = content?.body?.text;
-    const footer = content?.footer?.text;
+    // const footer = content?.footer?.text; // Schema doesn't have footer in InteractiveContent? Let's check. Schema says "header", "body", "action". No footer in schema for InteractiveContent.
 
     return (
       <Box>
         {header && <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>{header}</Typography>}
         {body && <Typography variant="body1" sx={{ mb: 1 }}>{body}</Typography>}
-        {footer && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>{footer}</Typography>}
-
-        {interactiveType === 'button' && content.action?.buttons?.map((btn, idx) => (
+        
+        {interactiveType === 'buttons' && content.action?.buttons?.map((btn, idx) => (
           <Button key={idx} fullWidth variant="contained" sx={{ mt: 0.5, bgcolor: 'white', color: 'primary.main', '&:hover': { bgcolor: '#f5f5f5' } }}>
-            {btn.reply?.title}
+            {btn.title}
           </Button>
         ))}
 
@@ -398,18 +365,12 @@ const RenderedMessageContent = ({ message }) => {
     );
   }
 
-  // Fallback for other types or unknown types
+  // Fallback
   return (
     <Box>
       <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-        Unsupported message type: {message.type}
+        Unsupported message type: {type}
       </Typography>
-      {/* Render text content if available as fallback */}
-      {typeof message.rendered_payload === 'string' && (
-        <Typography variant="body1" sx={{ mt: 0.5 }}>
-          {message.rendered_payload}
-        </Typography>
-      )}
     </Box>
   );
 };

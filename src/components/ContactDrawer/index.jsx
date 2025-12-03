@@ -38,7 +38,7 @@ const ContactDrawer = () => {
         <>
           {/* Profile */}
           <Box sx={{ p: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
-            <Avatar src={activeConversation.avatar} sx={{ width: 100, height: 100, mb: 2 }} />
+            <Avatar src={activeConversation.profile_picture} sx={{ width: 100, height: 100, mb: 2 }} />
             <Typography variant="h6">{activeConversation.contact_name}</Typography>
             <Typography variant="body2" color="text.secondary">{activeConversation.whatsapp_number}</Typography>
           </Box>
