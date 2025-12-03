@@ -77,6 +77,34 @@ export const useMessageStore = create((set, get) => ({
         }));
     },
 
+    setConversations: (conversationsList) => {
+        if (!Array.isArray(conversationsList)) return;
+        set((state, getState) => {
+            const existing = getState().conversations.byId || {};
+            const mapped = {};
+
+            conversationsList.forEach((c) => {
+                const id = c.uuid;
+                const existingEntry = existing[id] || {};
+                // preserve messages array if present on existing mapping
+                mapped[id] = {
+                    ...existingEntry,
+                    ...c,
+                    messages: existingEntry.messages || [],
+                };
+            });
+
+            return {
+                conversations: {
+                    byId: {
+                        ...existing,
+                        ...mapped,
+                    },
+                },
+            };
+        });
+    },
+
     getMessage: (id) => get().messages.byId[id],
 
     getMessagesForConversation: (conversationId) => {
