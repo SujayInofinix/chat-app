@@ -19,7 +19,8 @@ import {
 import { styled } from '@mui/material/styles';
 import Magnify from 'mdi-material-ui/Magnify';
 import FilterVariant from 'mdi-material-ui/FilterVariant';
-import { useChatStore } from '../../store/useChatStore';
+import { useConversationStore } from '../../store/conversation.store';
+import { useConversationsQuery } from '../../hooks/useWhatsapp';
 import { format } from 'date-fns';
 
 import { alpha } from '@mui/material/styles';
@@ -46,21 +47,17 @@ const StyledList = styled(List)(({ theme }) => ({
 
 const ConversationList = () => {
   const {
-    conversations,
     activeConversationId,
     activeTab,
     filterKeyword,
-    isLoadingConversations,
     setTab,
     setFilterKeyword,
-    fetchConversations,
-    selectConversation
-  } = useChatStore();
+    setActiveConversationId
+  } = useConversationStore();
 
-  useEffect(() => {
-    fetchConversations();
-  }, [fetchConversations]);
-
+  const { data: conversationsData, isLoading: isLoadingConversations } = useConversationsQuery();
+  const conversations = conversationsData || [];
+  console.log('Conversations:', conversationsData);
   const handleTabChange = (event, newValue) => {
     setTab(newValue);
   };
@@ -70,7 +67,7 @@ const ConversationList = () => {
   };
 
   const handleSelectConversation = (id) => {
-    selectConversation(id);
+    setActiveConversationId(id);
   };
 
   const formatTime = (dateString) => {
@@ -145,7 +142,7 @@ const ConversationList = () => {
                 selected={activeConversationId === conversation.uuid}
                 onClick={() => handleSelectConversation(conversation.uuid)}
                 alignItems="flex-start"
-                sx={{cursor: 'pointer'}}
+                sx={{ cursor: 'pointer' }}
               >
                 <ListItemAvatar>
                   <Avatar src={conversation.avatar} alt={conversation.contact_name} />
@@ -167,17 +164,17 @@ const ConversationList = () => {
                         {conversation.last_message_text || ' '}
                       </Typography>
                       {conversation.unread_count > 0 && (
-                        <Badge 
-                          badgeContent={conversation.unread_count} 
-                          sx={{ 
-                            '& .MuiBadge-badge': { 
-                              fontSize: '0.7rem', 
-                              height: 18, 
+                        <Badge
+                          badgeContent={conversation.unread_count}
+                          sx={{
+                            '& .MuiBadge-badge': {
+                              fontSize: '0.7rem',
+                              height: 18,
                               minWidth: 18,
                               backgroundColor: '#1DAA61',
                               color: '#fff'
-                            } 
-                          }} 
+                            }
+                          }}
                         />
                       )}
                     </Box>

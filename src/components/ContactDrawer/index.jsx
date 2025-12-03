@@ -16,11 +16,11 @@ import Phone from 'mdi-material-ui/Phone';
 import Email from 'mdi-material-ui/Email';
 import BlockHelper from 'mdi-material-ui/BlockHelper';
 import DeleteOutline from 'mdi-material-ui/DeleteOutline';
-import { useChatStore } from '../../store/useChatStore';
+import { useConversationStore } from '../../store/conversation.store';
 
 const ContactDrawer = () => {
-  const { isDrawerOpen, toggleDrawer, activeConversation } = useChatStore();
-  
+  const { isDrawerOpen, toggleDrawer, activeConversation } = useConversationStore();
+
   if (!isDrawerOpen) return null;
 
   return (
@@ -56,7 +56,7 @@ const ContactDrawer = () => {
                 Hey there! I am using WhatsApp.
               </Typography>
             </ListItem>
-            
+
             <Divider component="li" />
 
             <ListItem>
@@ -73,19 +73,19 @@ const ContactDrawer = () => {
 
           {/* Actions */}
           <Box sx={{ p: 2 }}>
-            <Button 
-              fullWidth 
-              variant="outlined" 
-              color="error" 
-              startIcon={<BlockHelper />} 
+            <Button
+              fullWidth
+              variant="outlined"
+              color="error"
+              startIcon={<BlockHelper />}
               sx={{ mb: 1 }}
             >
               Block Contact
             </Button>
-            <Button 
-              fullWidth 
-              variant="outlined" 
-              color="error" 
+            <Button
+              fullWidth
+              variant="outlined"
+              color="error"
               startIcon={<DeleteOutline />}
             >
               Delete Chat

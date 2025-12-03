@@ -1,6 +1,8 @@
 import React from 'react';
-import { Box, Typography, Divider, Button, IconButton } from '@mui/material';
+import { Box, Typography, Divider, Button, IconButton, Link } from '@mui/material';
 import FileDocument from 'mdi-material-ui/FileDocument';
+import MapMarker from 'mdi-material-ui/MapMarker';
+import AccountBox from 'mdi-material-ui/AccountBox';
 
 const RenderedMessageContent = ({ message }) => {
   // Format text for WhatsApp styling (bold, italic, strikethrough)
@@ -12,147 +14,180 @@ const RenderedMessageContent = ({ message }) => {
       .replace(/~(.*?)~/g, '<s>$1</s>');
   };
 
+  // Helper to get content based on type, supporting both new schema and legacy rendered_payload
+  const getContent = () => {
+    switch (message.type) {
+      case 'text':
+        return message.text?.body || message.rendered_payload;
+      case 'image':
+        return message.image || message.rendered_payload;
+      case 'video':
+        return message.video || message.rendered_payload;
+      case 'audio':
+        return message.audio || message.rendered_payload;
+      case 'document':
+        return message.document || message.rendered_payload;
+      case 'location':
+        return message.location || message.rendered_payload;
+      case 'contacts':
+        return message.contacts || message.rendered_payload;
+      case 'interactive':
+        return message.interactive || message.rendered_payload;
+      case 'template':
+        // Template usually has a complex structure, often pre-rendered in rendered_payload
+        // But if we have the raw template object, we might need to render it differently or just show fallback
+        return message.template || message.rendered_payload;
+      default:
+        return message.rendered_payload;
+    }
+  };
+
+  const content = getContent();
+
   if (message.type === 'text') {
+    const textBody = typeof content === 'string' ? content : content?.body;
     return (
       <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap', fontSize: '0.95rem' }}>
-        {message.rendered_payload}
+        {textBody}
       </Typography>
     );
   } else if (message.type === 'template') {
+    // ... existing template logic ...
+    // Assuming rendered_payload structure for templates is still dominant for now
+    // or we adapt to the new schema if present
     const components = message.rendered_payload?.rendered_components || [];
-    
-    return (
-      <Box>
-        {components.map((comp, index) => {
-          if (comp.type === 'HEADER') {
-            if (comp.format === 'TEXT') {
+
+    if (components.length > 0) {
+      return (
+        <Box>
+          {components.map((comp, index) => {
+            if (comp.type === 'HEADER') {
+              if (comp.format === 'TEXT') {
+                return (
+                  <Typography
+                    key={index}
+                    sx={{
+                      fontWeight: 'bold',
+                      mb: 1.5,
+                      color: '#3e4242',
+                      fontSize: '0.9rem',
+                      wordWrap: 'break-word',
+                      overflowWrap: 'break-word',
+                      lineHeight: 1.3
+                    }}
+                  >
+                    {comp.text}
+                  </Typography>
+                );
+              }
+              return null;
+            }
+
+            if (comp.type === 'BODY') {
+              return (
+                <Box
+                  key={index}
+                  sx={{
+                    color: '#3e4242',
+                    fontSize: '0.875rem',
+                    lineHeight: 1.4,
+                    wordWrap: 'break-word',
+                    overflowWrap: 'break-word',
+                    whiteSpace: 'pre-wrap',
+                    '& b': { fontWeight: 'bold' },
+                    '& i': { fontStyle: 'italic' },
+                    '& s': { textDecoration: 'line-through' }
+                  }}
+                  dangerouslySetInnerHTML={{
+                    __html: formatText(comp.text)
+                  }}
+                />
+              );
+            }
+
+            if (comp.type === 'FOOTER') {
               return (
                 <Typography
                   key={index}
+                  variant="caption"
                   sx={{
-                    fontWeight: 'bold',
-                    mb: 1.5,
-                    color: '#3e4242',
-                    fontSize: '0.9rem',
+                    display: 'block',
+                    mt: 1.5,
+                    color: '#6B7280',
+                    fontStyle: 'italic',
+                    fontSize: '0.75rem',
                     wordWrap: 'break-word',
                     overflowWrap: 'break-word',
-                    lineHeight: 1.3
+                    lineHeight: 1.2
                   }}
                 >
                   {comp.text}
                 </Typography>
               );
             }
-            // Handle other header formats (IMAGE, VIDEO, etc.) if needed
+
+            if (comp.type === 'BUTTONS' && comp.buttons && comp.buttons.length > 0) {
+              return (
+                <Box key={index} sx={{ width: '100%', display: 'flex', flexDirection: 'column', mt: 1.5 }}>
+                  {comp.buttons.map((button, btnIndex) => (
+                    <React.Fragment key={btnIndex}>
+                      <Divider sx={{ width: '100%', my: 1, borderColor: 'rgba(0,0,0,0.1)' }} />
+                      <Button
+                        fullWidth
+                        sx={{
+                          textTransform: 'none',
+                          color: '#00a5f4',
+                          fontWeight: 500,
+                          fontSize: '0.875rem',
+                          justifyContent: 'center',
+                          py: 0.5,
+                          '&:hover': {
+                            backgroundColor: 'rgba(0, 165, 244, 0.04)'
+                          }
+                        }}
+                      >
+                        {button.text}
+                      </Button>
+                    </React.Fragment>
+                  ))}
+                </Box>
+              );
+            }
+
             return null;
-          }
-          
-          if (comp.type === 'BODY') {
-            return (
-              <Box
-                key={index}
-                sx={{
-                  color: '#3e4242',
-                  fontSize: '0.875rem',
-                  lineHeight: 1.4,
-                  wordWrap: 'break-word',
-                  overflowWrap: 'break-word',
-                  whiteSpace: 'pre-wrap',
-                  '& b': {
-                    fontWeight: 'bold',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  },
-                  '& i': {
-                    fontStyle: 'italic',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  },
-                  '& s': {
-                    textDecoration: 'line-through',
-                    wordWrap: 'break-word',
-                    overflowWrap: 'break-word'
-                  }
-                }}
-                dangerouslySetInnerHTML={{
-                  __html: formatText(comp.text)
-                }}
-              />
-            );
-          }
-          
-          if (comp.type === 'FOOTER') {
-            return (
-              <Typography
-                key={index}
-                variant="caption"
-                sx={{
-                  display: 'block',
-                  mt: 1.5,
-                  color: '#6B7280',
-                  fontStyle: 'italic',
-                  fontSize: '0.75rem',
-                  wordWrap: 'break-word',
-                  overflowWrap: 'break-word',
-                  lineHeight: 1.2
-                }}
-              >
-                {comp.text}
-              </Typography>
-            );
-          }
-          
-          if (comp.type === 'BUTTONS' && comp.buttons && comp.buttons.length > 0) {
-            return (
-              <Box key={index} sx={{ width: '100%', display: 'flex', flexDirection: 'column', mt: 1.5 }}>
-                {comp.buttons.map((button, btnIndex) => (
-                  <React.Fragment key={btnIndex}>
-                    <Divider sx={{ width: '100%', my: 1, borderColor: 'rgba(0,0,0,0.1)' }} />
-                    <Button
-                      fullWidth
-                      sx={{
-                        textTransform: 'none',
-                        color: '#00a5f4',
-                        fontWeight: 500,
-                        fontSize: '0.875rem',
-                        justifyContent: 'center',
-                        py: 0.5,
-                        '&:hover': {
-                          backgroundColor: 'rgba(0, 165, 244, 0.04)'
-                        }
-                      }}
-                    >
-                      {button.text}
-                    </Button>
-                  </React.Fragment>
-                ))}
-              </Box>
-            );
-          }
-          
-          return null;
-        })}
-      </Box>
-    );
+          })}
+        </Box>
+      );
+    }
+    // Fallback if no rendered components but we have a template object
+    if (content?.name) {
+      return <Typography variant="body2">Template: {content.name}</Typography>;
+    }
+    return null;
+
   } else if (message.type === 'image') {
+    const url = content?.link || content?.url;
+    const caption = content?.caption;
     return (
       <Box sx={{ maxWidth: '100%' }}>
         <img
-          src={message.rendered_payload.url}
+          src={url}
           alt="Shared image"
           style={{ maxWidth: '100%', borderRadius: 8, display: 'block' }}
         />
-        {message.rendered_payload.caption && (
+        {caption && (
           <Typography variant="body2" sx={{ mt: 0.5 }}>
-            {message.rendered_payload.caption}
+            {caption}
           </Typography>
         )}
       </Box>
     );
   } else if (message.type === 'video') {
+    const url = content?.link || content?.url;
+    const caption = content?.caption;
     return (
       <Box>
-        <Box sx={{ 
+        <Box sx={{
           maxWidth: '100%',
           overflow: 'hidden',
           borderRadius: 2,
@@ -160,9 +195,9 @@ const RenderedMessageContent = ({ message }) => {
         }}>
           <video
             controls
-            src={message.rendered_payload.url}
-            style={{ 
-              width: '100%', 
+            src={url}
+            style={{
+              width: '100%',
               maxWidth: '100%',
               height: 'auto',
               display: 'block',
@@ -170,37 +205,40 @@ const RenderedMessageContent = ({ message }) => {
             }}
           />
         </Box>
-        {message.rendered_payload.caption && (
+        {caption && (
           <Typography variant="body2" sx={{ mt: 0.5, wordBreak: 'break-word' }}>
-            {message.rendered_payload.caption}
+            {caption}
           </Typography>
         )}
       </Box>
     );
   } else if (message.type === 'audio') {
+    const url = content?.link || content?.url;
     return (
-      <Box sx={{ 
+      <Box sx={{
         width: '100%',
         maxWidth: '100%',
         overflow: 'hidden',
       }}>
-        <audio 
-          controls 
-          src={message.rendered_payload.url} 
-          style={{ 
+        <audio
+          controls
+          src={url}
+          style={{
             width: '100%',
             maxWidth: '100%',
             display: 'block',
             outline: 'none',
-          }} 
+          }}
         />
       </Box>
     );
   } else if (message.type === 'document') {
-    const { filename = 'Document', pages, size } = message.rendered_payload;
-    
+    const url = content?.link || content?.url;
+    const filename = content?.filename || 'Document';
+    const caption = content?.caption;
+
     return (
-      <Box sx={{ 
+      <Box sx={{
         display: 'flex',
         flexDirection: 'column',
         bgcolor: '#FFFFFF',
@@ -220,7 +258,6 @@ const RenderedMessageContent = ({ message }) => {
           position: 'relative',
           borderBottom: '1px solid rgba(0,0,0,0.05)',
         }}>
-          {/* PDF Preview Placeholder */}
           <Box sx={{
             width: '80%',
             height: '80%',
@@ -241,18 +278,18 @@ const RenderedMessageContent = ({ message }) => {
         </Box>
 
         {/* Document Info */}
-        <Box sx={{ 
-          display: 'flex', 
+        <Box sx={{
+          display: 'flex',
           alignItems: 'center',
           p: 1.5,
           gap: 1.5,
         }}>
           <FileDocument fontSize="large" sx={{ color: 'error.main', flexShrink: 0 }} />
-          
+
           <Box sx={{ flex: 1, minWidth: 0 }}>
-            <Typography 
-              variant="body2" 
-              sx={{ 
+            <Typography
+              variant="body2"
+              sx={{
                 fontWeight: 500,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
@@ -262,25 +299,101 @@ const RenderedMessageContent = ({ message }) => {
             >
               {filename}
             </Typography>
-            <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-              {pages ? `${pages} pages` : ''}{pages && size ? ' • ' : ''} PDF{size ? ` • ${size}` : ''}
-            </Typography>
+            {caption && <Typography variant="caption" sx={{ color: 'text.secondary' }}>{caption}</Typography>}
           </Box>
 
           {/* Download Button */}
-          <IconButton 
-            size="small" 
-            sx={{ 
+          <IconButton
+            size="small"
+            sx={{
               bgcolor: '#e9edef',
               '&:hover': { bgcolor: '#d9dee0' },
               width: 36,
               height: 36,
             }}
-            onClick={() => window.open(message.rendered_payload.url, '_blank')}
+            onClick={() => window.open(url, '_blank')}
           >
             <Box component="span" sx={{ fontSize: 20 }}>⬇</Box>
           </IconButton>
         </Box>
+      </Box>
+    );
+  } else if (message.type === 'location') {
+    const { latitude, longitude, name, address } = content || {};
+    const mapUrl = `https://maps.google.com/maps?q=${latitude},${longitude}&z=15&output=embed`;
+
+    return (
+      <Box sx={{ width: '100%', minWidth: 200 }}>
+        <Box sx={{ height: 150, bgcolor: '#eee', mb: 1, borderRadius: 1, overflow: 'hidden' }}>
+          {/* Placeholder for map or actual iframe if allowed */}
+          <iframe
+            width="100%"
+            height="100%"
+            frameBorder="0"
+            style={{ border: 0 }}
+            src={mapUrl}
+            allowFullScreen
+          ></iframe>
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+          <MapMarker sx={{ color: 'error.main', mt: 0.5 }} />
+          <Box>
+            {name && <Typography variant="subtitle2">{name}</Typography>}
+            {address && <Typography variant="body2" color="text.secondary">{address}</Typography>}
+          </Box>
+        </Box>
+        <Link
+          href={`https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`}
+          target="_blank"
+          rel="noopener"
+          sx={{ display: 'block', mt: 1, fontSize: '0.875rem' }}
+        >
+          View on Google Maps
+        </Link>
+      </Box>
+    );
+  } else if (message.type === 'contacts') {
+    const contacts = Array.isArray(content) ? content : [content];
+    return (
+      <Box>
+        {contacts.map((contact, idx) => (
+          <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 2, p: 1, border: '1px solid #eee', borderRadius: 1, mb: 1 }}>
+            <AccountBox sx={{ fontSize: 40, color: 'primary.main' }} />
+            <Box>
+              <Typography variant="subtitle1">{contact.name?.formatted_name}</Typography>
+              {contact.phones?.[0]?.phone && (
+                <Typography variant="body2" color="text.secondary">{contact.phones[0].phone}</Typography>
+              )}
+            </Box>
+          </Box>
+        ))}
+        <Button fullWidth variant="outlined" size="small">View Contact</Button>
+      </Box>
+    );
+  } else if (message.type === 'interactive') {
+    // Handle interactive messages (list, button, product)
+    const interactiveType = content?.type;
+    const header = content?.header?.text;
+    const body = content?.body?.text;
+    const footer = content?.footer?.text;
+
+    return (
+      <Box>
+        {header && <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 0.5 }}>{header}</Typography>}
+        {body && <Typography variant="body1" sx={{ mb: 1 }}>{body}</Typography>}
+        {footer && <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>{footer}</Typography>}
+
+        {interactiveType === 'button' && content.action?.buttons?.map((btn, idx) => (
+          <Button key={idx} fullWidth variant="contained" sx={{ mt: 0.5, bgcolor: 'white', color: 'primary.main', '&:hover': { bgcolor: '#f5f5f5' } }}>
+            {btn.reply?.title}
+          </Button>
+        ))}
+
+        {interactiveType === 'list' && (
+          <Button fullWidth variant="contained" sx={{ mt: 0.5 }}>
+            {content.action?.button || 'View List'}
+          </Button>
+        )}
       </Box>
     );
   }

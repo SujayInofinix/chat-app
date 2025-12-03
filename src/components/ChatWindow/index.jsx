@@ -24,8 +24,12 @@ import Paperclip from 'mdi-material-ui/Paperclip';
 import Check from 'mdi-material-ui/Check';
 import CheckAll from 'mdi-material-ui/CheckAll';
 import ChevronDown from 'mdi-material-ui/ChevronDown';
-import { useChatStore } from '../../store/useChatStore';
+import { useConversationStore } from '../../store/conversation.store';
+import { useMessageStore } from '../../store/message.store';
+import { useShallow } from 'zustand/react/shallow';
+import { useMessagesQuery, useSendMessageMutation, useAddReactionMutation } from '../../hooks/useWhatsapp';
 import { format } from 'date-fns';
+import { Virtuoso } from 'react-virtuoso';
 import RenderedMessageContent from './RenderedMessageContent';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
 import { Fab, Zoom } from '@mui/material';
@@ -59,7 +63,7 @@ const MessageList = styled(Box)(({ theme }) => ({
 }));
 
 const MessageBubble = styled(Box)(({ theme, type }) => ({
-  
+
   padding: theme.spacing(1, 1.5), // Tighter padding
   borderRadius: theme.shape.borderRadius,
   position: 'relative',
@@ -70,7 +74,7 @@ const MessageBubble = styled(Box)(({ theme, type }) => ({
   borderTopRightRadius: type === 'outbound' ? 0 : theme.shape.borderRadius,
   borderTopLeftRadius: type === 'incoming' ? 0 : theme.shape.borderRadius,
   marginBottom: theme.spacing(0.5),
-  
+
   // Bubble Tail
   '& > .message-tail': {
     position: 'absolute',
@@ -134,15 +138,16 @@ const ChatWindow = () => {
   const {
     activeConversationId,
     activeConversation,
-    messages,
-    isLoadingMessages,
-    sendMessage,
     toggleDrawer,
-    replyingTo,
-    setReplyingTo,
-    clearReplyingTo,
-    addReaction
-  } = useChatStore();
+  } = useConversationStore();
+
+  const { isLoading: isLoadingMessages } = useMessagesQuery(activeConversationId);
+  const messages = useMessageStore(useShallow(state => state.getMessagesForConversation(activeConversationId)));
+  const { mutateAsync: sendMessage } = useSendMessageMutation();
+  const { mutateAsync: addReaction } = useAddReactionMutation();
+
+  const [replyingTo, setReplyingTo] = useState(null);
+  const clearReplyingTo = () => setReplyingTo(null);
 
   const [inputValue, setInputValue] = useState('');
   const [showScrollButton, setShowScrollButton] = useState(false);
@@ -175,8 +180,13 @@ const ChatWindow = () => {
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;
-    await sendMessage(inputValue);
+    await sendMessage({
+      conversationId: activeConversationId,
+      content: inputValue,
+      replyingTo
+    });
     setInputValue('');
+    clearReplyingTo();
   };
 
   const handleKeyPress = (e) => {
@@ -197,9 +207,9 @@ const ChatWindow = () => {
   };
 
   const handleReply = (message) => {
-    const senderName = message.direction === 'outbound' ? 'You' : 
+    const senderName = message.direction === 'outbound' ? 'You' :
       (message.conversation?.contact_name || activeConversation?.contact_name || 'Unknown');
-    
+
     setReplyingTo({
       uuid: message.uuid,
       preview_text: getMessagePreviewText(message),
@@ -229,12 +239,20 @@ const ChatWindow = () => {
 
   const handleEmojiSelect = (emoji) => {
     if (reactionPicker.message) {
-      addReaction(reactionPicker.message.uuid, emoji);
+      addReaction({
+        conversationId: activeConversationId,
+        messageId: reactionPicker.message.uuid,
+        emoji
+      });
     }
   };
 
   const handleReactionClick = (messageId, emoji) => {
-    addReaction(messageId, emoji);
+    addReaction({
+      conversationId: activeConversationId,
+      messageId,
+      emoji
+    });
   };
 
   const handleReplyPreviewClick = (messageId) => {
@@ -249,12 +267,12 @@ const ChatWindow = () => {
     return (
       <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', flexDirection: 'column', bgcolor: '#F0F2F5', borderBottom: '6px solid #43c453' }}>
         <Box sx={{ textAlign: 'center', maxWidth: 400 }}>
-             <Typography variant="h5" color="text.primary" gutterBottom sx={{ fontWeight: 300 }}>
-               Live Chat
-             </Typography>
-             <Typography variant="body2" color="text.secondary">
-               Select a chat to continue!
-             </Typography>
+          <Typography variant="h5" color="text.primary" gutterBottom sx={{ fontWeight: 300 }}>
+            Live Chat
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Select a chat to continue!
+          </Typography>
         </Box>
       </Box>
     );
@@ -305,14 +323,14 @@ const ChatWindow = () => {
                   }
                 }}
               >
-                <Box sx={{ 
+                <Box sx={{
                   position: 'relative',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 0.5,
                   flexDirection: msg.direction === 'outbound' ? 'row' : 'row-reverse',
                   maxWidth: '70%',
-                  justifyContent:'flex-end'
+                  justifyContent: 'flex-end'
                 }}>
                   {/* Smiley Button - Shows on message line hover */}
                   <IconButton
@@ -339,8 +357,8 @@ const ChatWindow = () => {
                   </IconButton>
 
                   {/* Message Bubble */}
-                  <Box 
-                    sx={{ 
+                  <Box
+                    sx={{
                       position: 'relative',
                       maxWidth: '65%',
                       // Show chevron on bubble hover
@@ -366,7 +384,7 @@ const ChatWindow = () => {
                         {msg.direction === 'outbound' && <MessageStatus status={msg.status || (msg.read ? 'read' : msg.delivered ? 'delivered' : 'sent')} />}
                       </Box>
                     </MessageBubble>
-                    
+
                     {/* Chevron Button - Shows on bubble hover, positioned at top-right corner */}
                     <IconButton
                       className="chevron-action"
@@ -397,7 +415,7 @@ const ChatWindow = () => {
                     >
                       <ChevronDown sx={{ fontSize: 16 }} />
                     </IconButton>
-                    
+
                     {/* Reactions Display - Absolutely positioned to overlap */}
                     {msg.reactions && msg.reactions.length > 0 && (
                       <ReactionDisplay
@@ -413,18 +431,18 @@ const ChatWindow = () => {
           )}
           <div ref={messagesEndRef} />
         </MessageList>
-        
+
         <Zoom in={showScrollButton}>
-          <Fab 
-            size="small" 
-            color="secondary" 
-            aria-label="scroll down" 
+          <Fab
+            size="small"
+            color="secondary"
+            aria-label="scroll down"
             onClick={scrollToBottom}
-            sx={{ 
-              position: 'absolute', 
-              bottom: 16, 
-              right: 32, 
-              bgcolor: 'background.paper', 
+            sx={{
+              position: 'absolute',
+              bottom: 16,
+              right: 32,
+              bgcolor: 'background.paper',
               color: 'text.secondary',
               '&:hover': { bgcolor: 'action.hover' }
             }}
@@ -438,37 +456,37 @@ const ChatWindow = () => {
       <ReplyInputPreview replyingTo={replyingTo} onCancel={clearReplyingTo} />
       <ChatInputContainer>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-            <IconButton size="medium"><EmoticonOutline /></IconButton>
-            <IconButton size="medium"><Paperclip /></IconButton>
-            <TextField
+          <IconButton size="medium"><EmoticonOutline /></IconButton>
+          <IconButton size="medium"><Paperclip /></IconButton>
+          <TextField
             fullWidth
             placeholder="Type a message"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyPress={handleKeyPress}
             sx={{
-                '& .MuiOutlinedInput-root': {
+              '& .MuiOutlinedInput-root': {
                 backgroundColor: '#FFFFFF',
                 borderRadius: 2,
                 '& fieldset': { border: 'none' },
                 padding: '8px 12px'
-                },
-                '& .MuiInputBase-input': {
-                    padding: 0
-                }
+              },
+              '& .MuiInputBase-input': {
+                padding: 0
+              }
             }}
             variant="outlined"
             size="small"
-            />
-             {inputValue.trim() ? (
-                 <IconButton color="primary" onClick={handleSend}>
-                   <Send />
-                 </IconButton>
-             ) : (
-                 <IconButton>
-                     <Phone /> {/* Placeholder for Mic icon usually */}
-                 </IconButton>
-             )}
+          />
+          {inputValue.trim() ? (
+            <IconButton color="primary" onClick={handleSend}>
+              <Send />
+            </IconButton>
+          ) : (
+            <IconButton>
+              <Phone /> {/* Placeholder for Mic icon usually */}
+            </IconButton>
+          )}
         </Box>
       </ChatInputContainer>
 

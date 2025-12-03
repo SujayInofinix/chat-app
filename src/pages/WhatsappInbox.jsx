@@ -4,15 +4,15 @@ import { useParams, useNavigate } from "react-router-dom";
 import ConversationList from "../components/ConversationList";
 import ChatWindow from "../components/ChatWindow";
 import ContactDrawer from "../components/ContactDrawer";
-import { useChatStore } from "../store/useChatStore";
+import { useConversationStore } from "../store/conversation.store";
 
 const WhatsappInbox = () => {
   const { id } = useParams();
-  const { selectConversation, isDrawerOpen } = useChatStore();
+  const { setActiveConversationId, isDrawerOpen } = useConversationStore();
 
   useEffect(() => {
-    selectConversation(id || null);
-  }, [id, selectConversation]);
+    setActiveConversationId(id || null);
+  }, [id, setActiveConversationId]);
 
   return (
     <Box
