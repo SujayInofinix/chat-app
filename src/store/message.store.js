@@ -65,6 +65,40 @@ export const useMessageStore = create(
         });
       },
 
+      updateMessage: (message) => {
+        console.log("[MessageStore] updateMessage called:", {
+          messageId: message.id,
+        });
+
+        set((state) => {
+          const { id } = message;
+
+          // Only update if message exists
+          if (!state.messages.byId[id]) {
+            console.warn(
+              "[MessageStore] updateMessage - Message not found:",
+              id
+            );
+            return state;
+          }
+
+          // Update the message in byId
+          const newMessagesById = {
+            ...state.messages.byId,
+            [id]: message,
+          };
+
+          console.log("[MessageStore] updateMessage - Message updated:", id);
+
+          return {
+            messages: {
+              byId: newMessagesById,
+              allIds: state.messages.allIds,
+            },
+          };
+        });
+      },
+
       setMessages: (messagesList, conversationId) => {
         console.log("[MessageStore] setMessages called:", {
           messagesCount: messagesList?.length,

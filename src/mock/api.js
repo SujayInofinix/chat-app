@@ -598,51 +598,47 @@ export const api = {
     const messages = mockMessagesStore[conversationId];
     if (!messages) return null;
 
-    // 1. Create a new reaction message (for the stream)
-    const reactionMessage = {
-      id: `r${Date.now()}`,
-      conversationId: conversationId,
-      direction: "outbound",
-      from: {
-        id: "agent-12",
-        display_name: "Support Agent",
-        userName: "agent_12",
-        email: "agent@example.com",
-        type: "agent",
-      },
-      type: "reaction",
-      content: {
-        reactionToMessageId: messageId,
-        emoji: emoji,
-      },
-      status: "sent",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
-    messages.push(reactionMessage);
-
-    // 2. Update the target message's metadata (for UI convenience)
+    // Find the target message
     const targetMessage = messages.find((m) => m.id === messageId);
-    if (targetMessage) {
-      if (!targetMessage.metadata) targetMessage.metadata = {};
-      if (!targetMessage.metadata.reactions)
-        targetMessage.metadata.reactions = [];
-
-      // Check if already reacted (toggle logic or append)
-      const existingIdx = targetMessage.metadata.reactions.findIndex(
-        (r) => r.user_id === CURRENT_USER_ID && r.emoji === emoji
-      );
-      if (existingIdx > -1) {
-        targetMessage.metadata.reactions.splice(existingIdx, 1);
-      } else {
-        targetMessage.metadata.reactions.push({
-          emoji,
-          user_id: CURRENT_USER_ID,
-          timestamp: new Date().toISOString(),
-        });
-      }
+    if (!targetMessage) {
+      console.error("[MockAPI] addReaction - Message not found:", messageId);
+      return null;
     }
 
-    return reactionMessage;
+    // Initialize metadata if needed
+    if (!targetMessage.metadata) targetMessage.metadata = {};
+    if (!targetMessage.metadata.reactions)
+      targetMessage.metadata.reactions = [];
+
+    // Toggle reaction (add or remove)
+    const existingIdx = targetMessage.metadata.reactions.findIndex(
+      (r) => r.user_id === CURRENT_USER_ID && r.emoji === emoji
+    );
+
+    if (existingIdx > -1) {
+      // Remove existing reaction (toggle off)
+      targetMessage.metadata.reactions.splice(existingIdx, 1);
+      console.log("[MockAPI] addReaction - Removed reaction:", {
+        messageId,
+        emoji,
+      });
+    } else {
+      // Add new reaction
+      targetMessage.metadata.reactions.push({
+        emoji,
+        user_id: CURRENT_USER_ID,
+        timestamp: new Date().toISOString(),
+      });
+      console.log("[MockAPI] addReaction - Added reaction:", {
+        messageId,
+        emoji,
+      });
+    }
+
+    // Update the message timestamp
+    targetMessage.updatedAt = new Date().toISOString();
+
+    // Return the updated message (not a new reaction message)
+    return targetMessage;
   },
 };

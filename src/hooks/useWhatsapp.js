@@ -97,16 +97,17 @@ export const useSendMessageMutation = () => {
 };
 
 export const useAddReactionMutation = () => {
-  const addMessage = useMessageStore((state) => state.addMessage);
-  const activeConversationId = useConversationStore(
-    (state) => state.activeConversationId
-  );
+  const updateMessage = useMessageStore((state) => state.updateMessage);
 
   return useMutation({
     mutationFn: addReaction,
     onSuccess: (updatedMessage) => {
       if (updatedMessage) {
-        addMessage(updatedMessage, activeConversationId);
+        console.log(
+          "[useAddReactionMutation] Updating message with reaction:",
+          updatedMessage.id
+        );
+        updateMessage(updatedMessage);
       }
     },
   });
