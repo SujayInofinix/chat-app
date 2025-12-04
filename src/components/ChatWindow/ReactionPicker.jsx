@@ -2,7 +2,7 @@ import React from 'react';
 import { Popover } from '@mui/material';
 import EmojiPicker from 'emoji-picker-react';
 
-const ReactionPicker = ({ anchorEl, onClose, onEmojiSelect }) => {
+const ReactionPicker = ({ anchorEl, onClose, onEmojiSelect, isDefaultReactionOpen = true }) => {
   const handleEmojiClick = (emojiObject) => {
     onEmojiSelect(emojiObject.emoji);
     onClose();
@@ -36,7 +36,7 @@ const ReactionPicker = ({ anchorEl, onClose, onEmojiSelect }) => {
         previewConfig={{ showPreview: false }}
         skinTonesDisabled
         searchDisabled={false}
-        reactionsDefaultOpen={true}
+        reactionsDefaultOpen={isDefaultReactionOpen}
       />
     </Popover>
   );

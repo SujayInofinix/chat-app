@@ -14,6 +14,7 @@ import {
 import { styled } from '@mui/material/styles';
 import Send from 'mdi-material-ui/Send';
 import Phone from 'mdi-material-ui/Phone';
+import Microphone from 'mdi-material-ui/Microphone';
 import Magnify from 'mdi-material-ui/Magnify';
 import DotsVertical from 'mdi-material-ui/DotsVertical';
 import PageLayoutSidebarRight from 'mdi-material-ui/PageLayoutSidebarRight';
@@ -119,6 +120,7 @@ const ChatWindow = () => {
   const [showScrollButton, setShowScrollButton] = useState(false);
   const [contextMenu, setContextMenu] = useState({ anchorEl: null, message: null });
   const [reactionPicker, setReactionPicker] = useState({ anchorEl: null, message: null });
+  const [isDefaultReactionOpen, setIsDefaultReactionOpen] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '' });
   
   const virtuosoRef = useRef(null);
@@ -322,8 +324,25 @@ const ChatWindow = () => {
       <ReplyInputPreview replyingTo={replyingTo} onCancel={clearReplyingTo} />
       <ChatInputContainer>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-          <IconButton size="medium"><EmoticonOutline /></IconButton>
-          <IconButton size="medium"><Paperclip /></IconButton>
+          <IconButton 
+            size="medium"
+            onClick={(e) => {
+              // Open reaction picker without a specific message (for input emoji)
+              setReactionPicker({ anchorEl: e.currentTarget, message: null });
+              setIsDefaultReactionOpen(false);
+            }}
+          >
+            <EmoticonOutline />
+          </IconButton>
+          <IconButton 
+            size="medium"
+            onClick={() => {
+              // TODO: Implement attachment functionality
+              setSnackbar({ open: true, message: 'Attachment feature coming soon!' });
+            }}
+          >
+            <Paperclip />
+          </IconButton>
           <TextField
             fullWidth
             placeholder="Type a message"
@@ -344,7 +363,7 @@ const ChatWindow = () => {
           {inputValue.trim() ? (
             <IconButton color="primary" onClick={handleSend}><Send /></IconButton>
           ) : (
-            <IconButton><Phone /></IconButton>
+            <IconButton><Microphone /></IconButton>
           )}
         </Box>
       </ChatInputContainer>
@@ -362,6 +381,7 @@ const ChatWindow = () => {
         anchorEl={reactionPicker.anchorEl}
         onClose={() => setReactionPicker({ anchorEl: null, message: null })}
         onEmojiSelect={handleEmojiSelect}
+        isDefaultReactionOpen={isDefaultReactionOpen}
       />
 
       <Snackbar
