@@ -39,6 +39,7 @@ import ReactionDisplay from './ReactionDisplay';
 import ReplyPreview from './ReplyPreview';
 import ReplyInputPreview from './ReplyInputPreview';
 import { copyMessageToClipboard, scrollToMessage, getMessagePreviewText } from '../../utils/messageUtils';
+import { buildSendPayload } from '../../utils/payloadBuilder';
 
 const ChatHeader = styled(Box)(({ theme }) => ({
   padding: theme.spacing(2),
@@ -124,19 +125,78 @@ const ChatWindow = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '' });
   
   const virtuosoRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const clearReplyingTo = () => setReplyingTo(null);
+  
+  const handleAttachmentClick = () => {
+    fileInputRef.current?.click();
+  };
+  
+  const handleFileSelect = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    try {
+      // TODO: In production, upload file to actual storage service
+      // For now, we'll create a mock media message
+      const mockMediaUrl = URL.createObjectURL(file);
+      const mediaType = file.type.split('/')[0]; // image, video, audio, etc.
+      
+      let messageType = 'media';
+      if (!['image', 'video', 'audio'].includes(mediaType)) {
+        messageType = 'document';
+      }
+      
+      const payload = buildSendPayload(activeConversationId, 'media', {
+        mediaType: mediaType === 'application' ? 'document' : mediaType,
+        url: mockMediaUrl,
+        filename: file.name,
+        mimeType: file.type,
+        caption: '' // Could add caption input later
+      });
+      
+      console.log('[ChatWindow] Sending media message:', payload);
+      await sendMessage(payload);
+      
+      // Reset file input
+      event.target.value = '';
+    } catch (error) {
+      console.error('[ChatWindow] Error sending media:', error);
+      setSnackbar({ open: true, message: 'Failed to send attachment' });
+    }
+  };
 
   const handleSend = async () => {
     if (!inputValue.trim()) return;
-    await sendMessage({
-      conversationId: activeConversationId,
-      content: inputValue,
-      replyingTo
-    });
-    setInputValue('');
-    clearReplyingTo();
-    virtuosoRef.current?.scrollToIndex({ index: messages.length, align: 'end', behavior: 'smooth' });
+    
+    try {
+      let payload;
+      
+      if (replyingTo) {
+        // Build reply payload
+        payload = buildSendPayload(activeConversationId, 'reply', {
+          replyTo: replyingTo.id,
+          messageType: 'text',
+          text: inputValue.trim()
+        });
+      } else {
+        // Build text payload
+        payload = buildSendPayload(activeConversationId, 'text', {
+          text: inputValue.trim()
+        });
+      }
+      
+      console.log('[ChatWindow] Sending message with payload:', payload);
+      await sendMessage(payload);
+      
+      setInputValue('');
+      clearReplyingTo();
+      virtuosoRef.current?.scrollToIndex({ index: messages.length, align: 'end', behavior: 'smooth' });
+    } catch (error) {
+      console.error('[ChatWindow] Error sending message:', error);
+      setSnackbar({ open: true, message: 'Failed to send message' });
+    }
   };
 
   const handleKeyPress = (e) => {
@@ -173,7 +233,11 @@ const ChatWindow = () => {
 
   const handleEmojiSelect = (emoji) => {
     if (reactionPicker.message) {
+      // Adding reaction to a message
       addReaction({ conversationId: activeConversationId, messageId: reactionPicker.message.id, emoji });
+    } else {
+      // Inserting emoji into input field
+      setInputValue(prev => prev + emoji);
     }
   };
 
@@ -336,13 +400,17 @@ const ChatWindow = () => {
           </IconButton>
           <IconButton 
             size="medium"
-            onClick={() => {
-              // TODO: Implement attachment functionality
-              setSnackbar({ open: true, message: 'Attachment feature coming soon!' });
-            }}
+            onClick={handleAttachmentClick}
           >
             <Paperclip />
           </IconButton>
+          <input
+            ref={fileInputRef}
+            type="file"
+            hidden
+            accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+            onChange={handleFileSelect}
+          />
           <TextField
             fullWidth
             placeholder="Type a message"

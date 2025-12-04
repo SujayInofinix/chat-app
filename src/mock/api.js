@@ -551,11 +551,23 @@ export const api = {
     };
   },
 
-  sendMessage: async (conversationId, content, replyTo = null) => {
+  sendMessage: async (payload) => {
     await delay(MOCK_DELAY);
+
+    console.log("[MockAPI] sendMessage received payload:", payload);
+
+    const { conversationId, type, content } = payload;
+
+    if (!conversationId || !type || !content) {
+      throw new Error(
+        "Invalid payload: conversationId, type, and content are required"
+      );
+    }
+
+    // Build base message object
     const newMessage = {
       id: `m${Date.now()}`,
-      conversationId: conversationId,
+      conversationId,
       direction: "outbound",
       from: {
         id: "agent-12",
@@ -564,16 +576,26 @@ export const api = {
         email: "agent@example.com",
         type: "agent",
       },
-      type: "text",
-      content: {
-        text: content,
-      },
+      type,
+      content,
       status: "sent",
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      metadata: replyTo ? { replyTo } : {},
+      metadata: {},
     };
 
+    // Handle reply type specifically (store replyTo in metadata for UI compatibility)
+    if (type === "reply" && content.replyTo) {
+      newMessage.metadata.replyTo = {
+        id: content.replyTo,
+        preview_text: content.text || "",
+        sender_name: "Previous Message",
+        message_type: content.messageType || "text",
+        direction: "inbound",
+      };
+    }
+
+    // Store message
     if (!mockMessagesStore[conversationId]) {
       mockMessagesStore[conversationId] = [];
     }
@@ -583,13 +605,38 @@ export const api = {
     const conversation = mockConversationsResponse.results.find(
       (c) => c.id === conversationId
     );
+
     if (conversation) {
       conversation.last_message_id = newMessage.id;
       conversation.last_message_timestamp = newMessage.createdAt;
       conversation.outgoing = true;
-      conversation.metadata.last_message_preview = content;
+
+      // Set preview based on message type
+      let preview = "";
+      switch (type) {
+        case "text":
+          preview = content.text;
+          break;
+        case "reply":
+          preview = content.text || "";
+          break;
+        case "media":
+          preview = content.caption || `📎 ${content.mediaType}`;
+          break;
+        case "location":
+          preview = "📍 Location";
+          break;
+        case "contact":
+          preview = "👤 Contact";
+          break;
+        default:
+          preview = `Message (${type})`;
+      }
+
+      conversation.metadata.last_message_preview = preview;
     }
 
+    console.log("[MockAPI] sendMessage created:", newMessage);
     return newMessage;
   },
 
