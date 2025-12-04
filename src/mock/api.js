@@ -5,6 +5,33 @@ const MOCK_DELAY = 800;
 // Simulated current user ID
 const CURRENT_USER_ID = "currentUser";
 
+// Helper function to extract preview text from a message
+const getMessageTextPreview = (message) => {
+  if (!message) return "";
+  switch (message.type) {
+    case "text":
+    case "reply":
+      return message.content?.text || "";
+    case "media":
+      const mediaType = message.content?.mediaType || "file";
+      return (
+        message.content?.caption ||
+        `[${mediaType.charAt(0).toUpperCase() + mediaType.slice(1)}]`
+      );
+    case "location":
+      return "[Location]";
+    case "contact":
+      return "[Contact]";
+    case "template":
+      return "[Template]";
+    case "interactive_buttons":
+    case "interactive_list":
+      return "[Interactive Message]";
+    default:
+      return "[Message]";
+  }
+};
+
 const mockConversationsResponse = {
   // Pagination fields removed as per requirement
   results: [
@@ -586,13 +613,40 @@ export const api = {
 
     // Handle reply type specifically (store replyTo in metadata for UI compatibility)
     if (type === "reply" && content.replyTo) {
-      newMessage.metadata.replyTo = {
-        id: content.replyTo,
-        preview_text: content.text || "",
-        sender_name: "Previous Message",
-        message_type: content.messageType || "text",
-        direction: "inbound",
-      };
+      // Find the original message to get accurate metadata
+      const messages = mockMessagesStore[conversationId] || [];
+      const originalMessage = messages.find((m) => m.id === content.replyTo);
+
+      if (originalMessage) {
+        console.log(
+          "[MockAPI] Found original message for reply:",
+          originalMessage
+        );
+
+        // Use actual message data for reply metadata
+        newMessage.metadata.replyTo = {
+          id: content.replyTo,
+          preview_text:
+            content.originalPreview || getMessageTextPreview(originalMessage),
+          sender_name:
+            content.originalSender ||
+            (originalMessage.direction === "outbound" ? "You" : "Unknown"),
+          message_type: originalMessage.type,
+          direction: originalMessage.direction,
+        };
+      } else {
+        // Fallback if original message not found
+        console.warn(
+          "[MockAPI] Original message not found, using payload data"
+        );
+        newMessage.metadata.replyTo = {
+          id: content.replyTo,
+          preview_text: content.originalPreview || content.text || "",
+          sender_name: content.originalSender || "Unknown",
+          message_type: content.messageType || "text",
+          direction: content.originalDirection || "inbound",
+        };
+      }
     }
 
     // Store message

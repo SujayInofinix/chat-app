@@ -1,14 +1,14 @@
-import React, { useEffect } from "react";
 import { Box, Paper } from "@mui/material";
-import { useParams, useNavigate } from "react-router-dom";
-import ConversationList from "../components/ConversationList";
+import { useEffect } from "react";
+import { useParams } from "react-router-dom";
 import ChatWindow from "../components/ChatWindow";
 import ContactDrawer from "../components/ContactDrawer";
+import ConversationList from "../components/ConversationList";
 import { useConversationStore } from "../store/conversation.store";
 
 const WhatsappInbox = () => {
   const { id } = useParams();
-  const { setActiveConversationId, isDrawerOpen } = useConversationStore();
+  const { setActiveConversationId } = useConversationStore();
 
   useEffect(() => {
     setActiveConversationId(id || null);

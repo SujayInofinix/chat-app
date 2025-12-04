@@ -174,11 +174,15 @@ const ChatWindow = () => {
       let payload;
       
       if (replyingTo) {
-        // Build reply payload
+        // Build reply payload with correct messageType
         payload = buildSendPayload(activeConversationId, 'reply', {
           replyTo: replyingTo.id,
-          messageType: 'text',
-          text: inputValue.trim()
+          messageType: replyingTo.reply_message_type || 'text',
+          text: inputValue.trim(),
+          // Pass original message info for metadata
+          originalSender: replyingTo.sender_name,
+          originalPreview: replyingTo.preview_text,
+          originalDirection: replyingTo.direction
         });
       } else {
         // Build text payload
@@ -206,18 +210,35 @@ const ChatWindow = () => {
     }
   };
 
-  const handleContextMenu = (e, message) => {
-    e.preventDefault();
-    setContextMenu({ anchorEl: e.currentTarget, message });
-  };
 
   const handleReply = (message) => {
-    const senderName = message.direction === 'outbound' ? 'You' : (activeConversation?.contact_name || 'Unknown');
+    // Correctly map sender name
+    const senderName = message.direction === 'outbound' 
+      ? 'You' 
+      : (activeConversation?.contact_name || 'Unknown');
+    
+    // Determine the messageType for reply payload
+    let replyMessageType = 'text';
+    if (message.type === 'text' || message.type === 'reply') {
+      replyMessageType = 'text';
+    } else if (message.type === 'media') {
+      replyMessageType = 'media';
+    } else if (message.type === 'sticker') {
+      replyMessageType = 'sticker';
+    } else if (message.type === 'location') {
+      replyMessageType = 'location';
+    } else if (message.type === 'contact') {
+      replyMessageType = 'contact';
+    } else {
+      replyMessageType = 'text'; // Default fallback
+    }
+    
     setReplyingTo({
       id: message.id,
       preview_text: getMessagePreviewText(message),
       sender_name: senderName,
       message_type: message.type,
+      reply_message_type: replyMessageType, // Type for the reply payload
       direction: message.direction,
     });
   };

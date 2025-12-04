@@ -28,6 +28,9 @@ export const buildSendPayload = (conversationId, type, data) => {
     case "text":
       payload.content = buildTextContent(data);
       break;
+    case "reply":
+      payload.content = buildReplyContent(data);
+      break;
     case "media":
       payload.content = buildMediaContent(data);
       break;
@@ -113,6 +116,12 @@ const buildReplyContent = (data) => {
     if (data.url) content.url = data.url;
     if (data.text) content.text = data.text; // Caption for media replies
   }
+
+  // Pass through original message metadata for mock API
+  if (data.originalSender) content.originalSender = data.originalSender;
+  if (data.originalPreview) content.originalPreview = data.originalPreview;
+  if (data.originalDirection)
+    content.originalDirection = data.originalDirection;
 
   return content;
 };
